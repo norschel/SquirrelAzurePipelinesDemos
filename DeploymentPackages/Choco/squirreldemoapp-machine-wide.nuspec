@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>squirreldemoapp-machine-wide</id>
+    <version>__ChocoPackageVersion__</version>
+    <title>squirreldemoapp Machine-Wide (Install)</title>
+    <authors>Nico Orschel</authors>
+    <owners>Nico Orschel</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>squirreldemoapp-Machine-Wide
+
+### Package Specific
+#### Installer Properties
+The following install arguments can be passed:
+ * `NETFRAMEWORK45`
+
+To append install arguments to the current silent arguments passed to the installer, use `--install-arguments="''"` or `--install-arguments-sensitive="''"`. To completely override the silent arguments with your own, also pass `--override-arguments`.
+ Example: `choco install packageId [other options] --install-arguments="'PROPERTY=value PROPERTY2=value2'"`
+To have choco remember parameters on upgrade, be sure to set `choco feature enable -n=useRememberedArgumentsForUpgrades`.</description>
+    <copyright>Nico Orschel</copyright>
+    <tags>squirreldemoapp-machine-wide admin</tags>
+  </metadata>
+</package>

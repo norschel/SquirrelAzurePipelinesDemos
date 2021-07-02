@@ -1,0 +1,18 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="SquirrelApp" GeneratedClassName="SettingsApp">
+  <Profiles />
+  <Settings>
+    <Setting Name="UpdateUrl" Type="System.String" Scope="User">
+      <Value Profile="(Default)">__updateUrl__</Value>
+    </Setting>
+    <Setting Name="StableUpdateUrl" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">http://nbk168/stable</Value>
+    </Setting>
+    <Setting Name="UnstableUpdateUrl" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">http://nbk168/unstable</Value>
+    </Setting>
+    <Setting Name="DebugMode" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

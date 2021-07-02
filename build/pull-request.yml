@@ -1,0 +1,32 @@
+name: $(majorversion).$(minorversion).$(Rev:r)
+
+trigger: none
+
+pr:
+  autoCancel: true
+  branches:
+    include:
+      - '*'
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  majorversion: 666
+  minorversion: 666
+  nugetVersion: $(Build.BuildNumber)
+  assemblyVersion: $(Build.BuildNumber).0
+
+stages:
+  - template: 'build.yml'
+    parameters:
+      solution: '$(solution)'
+      buildPlatform: '$(buildPlatform)'
+      buildConfiguration: '$(buildConfiguration)'
+      majorversion: $(majorversion)
+      minorversion: $(minorversion)
+      nugetVersion: $(nugetVersion)
+      assemblyVersion: $(assemblyVersion)

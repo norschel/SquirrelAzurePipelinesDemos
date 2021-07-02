@@ -1,0 +1,58 @@
+parameters: 
+    solution: '**/*.sln'
+    buildPlatform: 'Any CPU'
+    buildConfiguration: 'Release'
+    majorversion: 1
+    minorversion: 0
+
+stages:
+  - stage: Build
+    jobs:
+      - job: Build
+        steps:
+        - task: NuGetToolInstaller@1
+
+        - task: NuGetCommand@2
+          inputs:
+            restoreSolution: '$(solution)'
+
+        - task: VersionAssemblies@2
+          displayName: 'Versioning Assemblies'
+          inputs:
+            filePattern: '**\AssemblyInfo.*'
+            versionSource: 'variable'
+            customNumberVariable: 'nugetVersion'
+            versionFormat: 'threeParts'
+            replaceVersionFormat: 'threeParts'
+
+        - task: VersionAssemblies@2
+          displayName: 'Versioning NuGet packages'
+          inputs:
+            filePattern: '**\*.nuspec'
+            versionSource: 'variable'
+            customNumberVariable: 'nugetVersion'
+            versionFormat: 'threeParts'
+            replaceVersionFormat: 'threeParts'
+
+        - task: VSBuild@1
+          inputs:
+            solution: '$(solution)'
+            platform: '$(buildPlatform)'
+            configuration: '$(buildConfiguration)'
+            vsVersion: '15.0'
+
+        - task: PublishPipelineArtifact@1
+          displayName: "Upload original app files"
+          inputs:
+            targetPath: '$(Build.SourcesDirectory)\Src\SquirrelApp\SquirrelApp\bin\$(buildConfiguration)'
+            artifact: 'AppFiles'
+            publishLocation: 'pipeline'
+
+        - task: PublishPipelineArtifact@1
+          displayName: "Upload Deployment Packages"
+          inputs:
+            targetPath: '$(Build.SourcesDirectory)\DeploymentPackages'
+            artifact: 'DeploymentPackages'
+            publishLocation: 'pipeline'
+
+

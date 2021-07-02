@@ -1,0 +1,61 @@
+parameters:
+    deploymentType: 'Preview'
+    updateUrl: 'http://nbk168/unstable'
+    releaseDir: '\\nbk080\SquirrelDemo\unstable'
+
+steps:
+  - download: current
+    displayName: "Download app files"
+    artifact: AppFiles
+  
+  - download: current
+    displayName: "Download deployment package files"
+    artifact: DeploymentPackages
+
+  - task: NuGetToolInstaller@1
+
+  - task: NuGetCommand@2
+    displayName: "Restore NuGet packages"
+    inputs:
+      restoreSolution: '$(Pipeline.Workspace)/DeploymentPackages/Squirrel/PackageConfig/packages.config'
+      restoreDirectory: '$(Pipeline.Workspace)/DeploymentPackages/Squirrel/PackageConfig/packages'
+
+  - task: ReplaceTokens@1
+    displayName: 'Change update channel url in config files'
+    inputs:
+      sourcePath: '$(Pipeline.Workspace)\AppFiles'
+      filePattern: '*.config'
+      tokenRegex: '__(\w+)__'
+
+  - task: PowerShell@2
+    displayName: 'Copy app files into Squirrel package folder'
+    inputs:
+      targetType: 'inline'
+      script: |
+        $from = "$(Pipeline.Workspace)\AppFiles"
+        $to = "$(Pipeline.Workspace)\DeploymentPackages\Squirrel\AppFiles"
+        
+        Get-ChildItem -Path $from | % { 
+        Copy-Item $_.fullname "$to" -Recurse -Force -Verbose
+        }
+
+  - task: NuGetCommand@2
+    displayName: "Create package for Squirrel releasify process"
+    inputs:
+      command: 'pack'
+      packagesToPack: '$(Pipeline.Workspace)/DeploymentPackages/Squirrel/*.nuspec'
+      packDestination: '$(Pipeline.Workspace)/Staging/Package'
+      versioningScheme: 'off'
+  
+  - task: PowerShell@2
+    displayName: 'Squirrel releasify'
+    inputs:
+      targetType: 'inline'
+      script: |
+        $squirrelPath = Get-ChildItem -Path $(Pipeline.Workspace)/DeploymentPackages/Squirrel/PackageConfig/packages -Recurse -Filter "Squirrel.exe" | Select-Object -Last 1  
+        $squirrelPath = $squirrelPath.FullName
+        write-host "Found Squirrel: $squirrelPath"
+        $nugetPackage = Join-Path $(Pipeline.Workspace)/Staging/Package "*.nupkg" | Get-ChildItem | Select-Object -Last 1
+        write-host "Found package: $nugetPackage"
+        &$squirrelPath | write-host
+        &$squirrelPath --releasify $nugetPackage --releaseDir="$(releaseDir)" --shortcut-locations='Desktop,StartMenu'| write-host

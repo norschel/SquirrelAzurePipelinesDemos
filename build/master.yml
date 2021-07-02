@@ -1,0 +1,127 @@
+name: $(majorversion).$(minorversion).$(Rev:r)
+
+trigger:
+- master
+
+pool:
+  name: default
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Debug'
+  majorversion: 1
+  minorversion: 0
+  nugetVersion: $(Build.BuildNumber)
+  assemblyVersion: $(Build.BuildNumber).0
+  chocoPackageVersion: $(nugetVersion)
+
+stages:
+  - template: 'build.yml'
+    parameters:
+      solution: '$(solution)'
+      buildPlatform: '$(buildPlatform)'
+      buildConfiguration: '$(buildConfiguration)'
+      majorversion: $(majorversion)
+      minorversion: $(minorversion)
+      nugetVersion: $(nugetVersion)
+      assemblyVersion: $(assemblyVersion)
+
+  - stage: Staging
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
+    jobs:
+      - deployment: Staging
+        displayName: Deploy App
+        pool: default
+        environment: 'squirreldemo-staging'
+        variables:
+          updateUrl: 'http://nbk168/unstable'
+          releaseDir: '\\nbk168\SquirrelDemo\unstable'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: "createSquirrelPackageDeploy.yml"
+                  parameters:
+                    deploymentType: "Preview"
+                    updateUrl: "$(updateUrl)"
+                    releaseDir: "$(releaseDir)"             
+  - stage: Production
+    dependsOn: Staging
+    condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
+    jobs:
+      - deployment: Production
+        displayName: Deploy App
+        pool: 
+          name: default
+          demands: 
+            - ChocolateyInstall
+        environment: 'squirreldemo-prod'
+        variables:
+          updateUrl: 'http://nbk168/stable'
+          releaseDir: '\\nbk168\SquirrelDemo\stable'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: "createSquirrelPackageDeploy.yml"
+                  parameters:
+                    deploymentType: "Prod"
+                    updateUrl: "$(updateUrl)"
+                    releaseDir: "$(releaseDir)"
+                - task: PowerShell@2
+                  displayName: 'Calculate checksum'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      if (test-path -path $(releaseDir)\setup.msi)
+                      {
+                          $file = "$(releaseDir)\setup.msi"
+                          $today = Get-Date
+                          $today = $today.AddHours(-2)
+                          $lastWriteTime = (Get-Item $File).LastWriteTime
+                          Write-Host "Filedate setup.msi $lastWriteTime"
+                          Write-Host "Reference file date $today (setup.msi date must be greater)"
+                          if ($lastWriteTime -gt $today)
+                          {
+                            write-host "Setup.msi file creation date looks okay"
+                          } 
+                          else
+                          {
+                            throw "Aborting ... setup.msi is too old."
+                          }
+                          $checksum = Get-FileHash -Algorithm SHA256 -Path $(releaseDir)\setup.msi
+                          $checksum = $checksum.Hash
+                          write-host "Calculated setup.msi checksum $checksum"
+                          write-Host "##vso[task.setvariable variable=ChocoPackageChecksum;]$checksum"
+                          copy-item -path $(releaseDir)\setup.msi -destination $(Pipeline.Workspace)/DeploymentPackages/Choco/tools -verbose
+                      }
+                      else 
+                      {
+                          throw 'Setup.msi not found or something other bad happend.'
+                      }  
+
+                - task: ReplaceTokens@1
+                  displayName: 'Change version number in Choco package'
+                  inputs:
+                    sourcePath: '$(Pipeline.Workspace)\DeploymentPackages\Choco'
+                    filePattern: '*.nuspec'
+                    tokenRegex: '__(\w+)__'
+                - task: ReplaceTokens@1
+                  displayName: 'Change checksum in Choco package scripts'
+                  inputs:
+                    sourcePath: '$(Pipeline.Workspace)\\DeploymentPackages\Choco\tools'
+                    filePattern: '*.ps1'
+                    tokenRegex: '__(\w+)__'  
+                - task: PowerShell@2
+                  displayName: 'Create Choco package and copy to internal shares'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      if (!(test-path -path $(Pipeline.Workspace)\Staging\ChocoPackage))
+                      {
+                        mkdir "$(Pipeline.Workspace)\Staging\ChocoPackage"
+                      }
+                      choco pack $(Pipeline.Workspace)/DeploymentPackages/Choco/squirreldemoapp-machine-wide.nuspec --outputdirectory $(Pipeline.Workspace)\Staging\ChocoPackage
+                      copy-item -path $(Pipeline.Workspace)\Staging\ChocoPackage\*.nupkg -Destination '\\nbk168\SquirrelDemo\Choco' -Verbose
